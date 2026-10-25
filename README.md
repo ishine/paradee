@@ -1,26 +1,28 @@
 # Paradee
 
 Paradee is a small English text-to-speech model. It has 7.88M parameters and is distilled from
-[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), and it speaks one voice, Kokoro's `af_heart`.
+[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), and it speaks four of Kokoro's voices:
+`af_heart` and `am_puck` (American) and `bf_isabella` and `bm_fable` (British).
 
-- **Small.** The int8 model is one 8.5 MB ONNX file, against 325 MB for Kokoro.
+- **Small.** The int8 model is one 8.5 MB ONNX file for all four voices, against 325 MB for Kokoro.
 - **Fast.** It runs about 62x faster than real time on one CPU thread, with no GPU.
-- **Close to its teacher.** It scores 4.39 on UTMOS (Kokoro: 4.52) and its word error rate is within a few tenths of a point of Kokoro's.
+- **Close to its teacher.** With `af_heart` it scores 4.40 on UTMOS (Kokoro: 4.52), and its word error rate is no worse than Kokoro's on any of the four voices.
 
-**New in 1.1:** a new decoder head that makes the model more than 3x faster and leaves less buzz in voiced sounds. See [What changed in 1.1](#what-changed-in-11).
+**New in 1.2:** four voices instead of one, with British pronunciation for the two British voices. See [What changed in 1.2](#what-changed-in-12).
 
 Paradee also runs inside the browser. It is the light voice in the
 [Chickadee](https://github.com/sahilmahendrakar/chickadee) Chrome extension, where it needs no WebGPU and no download.
 
 **Paper:** [Paradee: Distilling Kokoro-82M into an 8M-Parameter Single-Voice Text-to-Speech Model](paper/Paradee-Mahendrakar-2026.pdf) ([arXiv:2610.06817](https://arxiv.org/abs/2610.06817))
 
-**Model files and audio samples:** [huggingface.co/sahilmahendrakar/Paradee-8M-v1.1](https://huggingface.co/sahilmahendrakar/Paradee-8M-v1.1) (the earlier release is at [Paradee-8M-v1.0](https://huggingface.co/sahilmahendrakar/Paradee-8M-v1.0))
+**Model files and audio samples:** [huggingface.co/sahilmahendrakar/Paradee-8M-v1.2](https://huggingface.co/sahilmahendrakar/Paradee-8M-v1.2) (earlier releases are at [Paradee-8M-v1.1](https://huggingface.co/sahilmahendrakar/Paradee-8M-v1.1) and [Paradee-8M-v1.0](https://huggingface.co/sahilmahendrakar/Paradee-8M-v1.0))
 
 ## Quick start
 
 ```bash
 pip install git+https://github.com/sahilmahendrakar/paradee
 python -m paradee "Paradee is a small voice that runs anywhere." -o hello.wav
+python -m paradee "Paradee is a small voice that runs anywhere." --voice bf_isabella -o hello_isabella.wav
 ```
 
 From Python:
@@ -30,13 +32,34 @@ from paradee import Paradee, SAMPLE_RATE
 import soundfile as sf
 
 tts = Paradee()   # downloads the 8.5 MB model from the Hugging Face Hub the first time
-audio = tts("Paradee is a small voice that runs anywhere.")
+audio = tts("Paradee is a small voice that runs anywhere.")                     # af_heart
+audio = tts("Paradee is a small voice that runs anywhere.", voice="bm_fable")   # or bf_isabella, am_puck
 sf.write("hello.wav", audio, SAMPLE_RATE)
 ```
 
 Text is turned into phonemes with [misaki](https://github.com/hexgrad/misaki), Kokoro's own
 grapheme-to-phoneme library, which is what the training data used. The first run also downloads
-misaki's English dictionary data. `Paradee(version="1.0")` loads the earlier release.
+misaki's English dictionary data. The British voices use misaki's British dictionary, as Kokoro
+does. `Paradee(version="1.1")` and `Paradee(version="1.0")` load the earlier releases, which have
+`af_heart` only.
+
+## What changed in 1.2
+
+The model is the same size and shape as 1.1. Each half now has a small table with one learned
+vector per voice, and the voice you pick chooses the row. Everything else is shared. Both halves
+started from 1.1 and were trained further on Kokoro reading 12,000 sentences in each voice.
+
+On the same 200 held-out sentences, with the int8 ONNX file:
+
+| Voice | UTMOS | Kokoro | WER | Kokoro |
+|---|---:|---:|---:|---:|
+| `af_heart` | 4.40 | 4.52 | 5.3% | 5.7% |
+| `bf_isabella` | 4.08 | 4.41 | 5.9% | 5.6% |
+| `am_puck` | 4.32 | 4.47 | 5.6% | 6.3% |
+| `bm_fable` | 4.19 | 4.32 | 5.5% | 5.7% |
+
+`af_heart` scores the same as in 1.1 (4.39), and the file size and speed are unchanged.
+`bf_isabella` is the voice furthest from its teacher.
 
 ## What changed in 1.1
 
@@ -112,7 +135,8 @@ The model is one ONNX graph that goes from token ids to audio:
 
 - **Inputs:** `input_ids`, int64 `[1, T]`. These are phoneme ids from Kokoro's vocabulary (in
   `config.json` on the Hub), with a `0` pad token at each end, at most 512 in total. The second
-  input is `speed`, float32 `[1]`, where 1.0 is normal speed.
+  input is `speed`, float32 `[1]`, where 1.0 is normal speed. In 1.2 the third input is `voice`,
+  int64 `[1]`, the voice's position in the `voices` list in `config.json` (0 is `af_heart`).
 - **Output:** `waveform`, float32 `[1, samples]` at 24 kHz.
 
 [`web/misaki.js`](web/misaki.js) is for the browser. Browser phonemizers such as
