@@ -1,6 +1,6 @@
 [project]
 name = "paradee"
-version = "1.1.0"
+version = "1.2.0"
 description = "An 8M-parameter English text-to-speech model distilled from Kokoro-82M"
 readme = "README.md"
 license = "Apache-2.0"
@@ -22,7 +22,7 @@ dependencies = [
 paradee = "paradee.__main__:main"
 
 [project.urls]
-"Model" = "https://huggingface.co/sahilmahendrakar/Paradee-8M-v1.1"
+"Model" = "https://huggingface.co/sahilmahendrakar/Paradee-8M-v1.2"
 
 [build-system]
 requires = ["hatchling"]
