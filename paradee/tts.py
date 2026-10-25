@@ -28,11 +28,19 @@ class Paradee:
         so.intra_op_num_threads = threads
         so.inter_op_num_threads = 1
         self.session = ort.InferenceSession(model_path, so, providers=["CPUExecutionProvider"])
-        from misaki import en, espeak   # the same G2P setup as kokoro.KPipeline(lang_code="a"), which made the training data
-        self.g2p = en.G2P(trf=False, british=False, fallback=espeak.EspeakFallback(british=False), unk="")
+        self._g2p = {}
 
-    def phonemize(self, text):
-        phonemes, _ = self.g2p(text)
+    def g2p(self, british=False):
+        """The same G2P setup as kokoro.KPipeline, which made the training data: lang_code "a" (American) for
+        the af_/am_ voices, "b" (British) for the bf_/bm_ ones. Each is loaded the first time it is needed."""
+        if british not in self._g2p:
+            from misaki import en, espeak
+            self._g2p[british] = en.G2P(trf=False, british=british, fallback=espeak.EspeakFallback(british=british), unk="")
+        return self._g2p[british]
+
+    def phonemize(self, text, voice="af_heart"):
+        """British phonemes for the British voices (bf_isabella, bm_fable), American for the rest."""
+        phonemes, _ = self.g2p(british=voice.startswith("b"))(text)
         return phonemes
 
     def generate_from_phonemes(self, phonemes, speed=1.0):
@@ -40,16 +48,16 @@ class Paradee:
         feed = {"input_ids": np.array([ids], dtype=np.int64), "speed": np.array([speed], dtype=np.float32)}
         return self.session.run(None, feed)[0][0]
 
-    def __call__(self, text, speed=1.0):
+    def __call__(self, text, speed=1.0, voice="af_heart"):
         """speed > 1 speaks faster. Long text is read one sentence at a time."""
-        parts = [self.generate_from_phonemes(ps, speed) for ps in self._chunks(text)]
+        parts = [self.generate_from_phonemes(ps, speed) for ps in self._chunks(text, voice)]
         return np.concatenate(parts) if parts else np.zeros(0, dtype=np.float32)
 
-    def _chunks(self, text):
+    def _chunks(self, text, voice="af_heart"):
         for sentence in re.split(r"(?<=[.!?…])\s+|\n+", text.strip()):
             if not sentence.strip():
                 continue
-            ps = self.phonemize(sentence)
+            ps = self.phonemize(sentence, voice)
             while len(ps) > MAX_PHONEMES:   # a very long sentence: cut at the last space that fits
                 cut = ps.rfind(" ", 0, MAX_PHONEMES)
                 cut = cut if cut > 0 else MAX_PHONEMES
