@@ -6,7 +6,7 @@ Paradee is a small English text-to-speech model. It has 7.88M parameters and is 
 
 - **Small.** The int8 model is one 8.5 MB ONNX file for all four voices, against 325 MB for Kokoro.
 - **Fast.** It runs about 62x faster than real time on one CPU thread, with no GPU.
-- **Close to its teacher.** With `af_heart` it scores 4.40 on UTMOS (Kokoro: 4.52), and its word error rate is no worse than Kokoro's on any of the four voices.
+- **Close to its teacher.** With `af_heart` it scores 4.40 on UTMOS (Kokoro: 4.52), and its word error rate is within a few tenths of a point of Kokoro's on all four voices.
 
 **New in 1.2:** four voices instead of one, with British pronunciation for the two British voices. See [What changed in 1.2](#what-changed-in-12).
 
@@ -53,10 +53,10 @@ On the same 200 held-out sentences, with the int8 ONNX file:
 
 | Voice | UTMOS | Kokoro | WER | Kokoro |
 |---|---:|---:|---:|---:|
-| `af_heart` | 4.40 | 4.52 | 5.3% | 5.7% |
-| `bf_isabella` | 4.08 | 4.41 | 5.9% | 5.6% |
-| `am_puck` | 4.32 | 4.47 | 5.6% | 6.3% |
-| `bm_fable` | 4.19 | 4.32 | 5.5% | 5.7% |
+| `af_heart` | 4.40 | 4.52 | 5.8% | 5.7% |
+| `bf_isabella` | 4.06 | 4.41 | 5.7% | 5.6% |
+| `am_puck` | 4.32 | 4.47 | 5.4% | 6.3% |
+| `bm_fable` | 4.18 | 4.32 | 5.7% | 5.7% |
 
 `af_heart` scores the same as in 1.1 (4.39), and the file size and speed are unchanged.
 `bf_isabella` is the voice furthest from its teacher.
